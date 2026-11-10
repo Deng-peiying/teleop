@@ -1,0 +1,72 @@
+[project]
+name = "linkerbot-transport"
+dynamic = ["version"]
+description = "Transport and concurrency primitives for Linkerbot device SDKs"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Linkerbot" }]
+dependencies = []
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Documentation = "https://github.com/linker-bot/linkerbot-transport/blob/main/README.md"
+Issues = "https://github.com/linker-bot/linkerbot-transport/issues"
+Repository = "https://github.com/linker-bot/linkerbot-transport"
+
+[project.optional-dependencies]
+can = ["python-can>=4.6.1,<5.0"]
+canfd = ["python-can[serial]>=4.6.1,<5.0"]
+all = ["python-can[serial]>=4.6.1,<5.0"]
+
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+  "build>=1.3.0",
+  "pre-commit>=4.0.0",
+  "pytest>=9.1.1",
+  "pytest-timeout>=2.4.0",
+  "ruff>=0.15.21",
+  "ty>=0.0.58",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["linkerbot_transport*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+linkerbot_transport = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers"]
+markers = ["canfd: Tests for CAN FD communication"]
+
+[tool.ruff]
+extend-exclude = ["*.md"]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["linkerbot_transport"]

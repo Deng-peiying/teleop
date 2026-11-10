@@ -1,0 +1,126 @@
+{
+  "name": "table_facing",
+  "source": "actual_device_readings",
+  "timezone": "Asia/Shanghai",
+  "note": "Reference pose only. Arm and hand read sequentially. Saving does not command motion.",
+  "captured_at": "2026-11-08T17:20:51.042232+08:00",
+  "arm_state": {
+    "joint": [
+      173.9320068359375,
+      -4.36299991607666,
+      1.402999997138977,
+      -109.62000274658203,
+      -1.8109999895095825,
+      -12.194000244140625,
+      29.531999588012695
+    ],
+    "pose": [
+      0.340237,
+      -0.028999,
+      0.315265,
+      -2.576,
+      -0.797,
+      -0.813
+    ],
+    "err": {
+      "err_len": 1,
+      "err": [
+        "0"
+      ]
+    }
+  },
+  "tool_frame": {
+    "name": "Arm_Tip",
+    "pose": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "payload": 0.0,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "work_frame": {
+    "name": "World",
+    "pose": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "payload": 0.0,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "robot_info": {
+    "arm_dof": 7,
+    "arm_model": "RM_75",
+    "force_type": "6FB",
+    "robot_controller_version": 3
+  },
+  "software_info": {
+    "product_version": "RM75-6FB",
+    "algorithm_info": {
+      "version": "1.5.8-9bc5db80"
+    },
+    "ctrl_info": {
+      "build_time": "2025/11/03 11:39:02",
+      "version": "V1.7.1-933151c"
+    },
+    "dynamic_info": {
+      "model_version": "2"
+    },
+    "plan_info": {
+      "build_time": "2026/05/07 16:40:41",
+      "version": "V1.7.5-05590ea"
+    }
+  },
+  "hand_captured_at": "2026-11-08T17:20:51.819439+08:00",
+  "hand_raw": {
+    "thumb_rotation": 254,
+    "thumb_roll": 254,
+    "thumb_root": 0,
+    "thumb_tip": 254,
+    "index_abd": 176,
+    "index_root": 246,
+    "index_tip": 252,
+    "middle_abd": 125,
+    "middle_root": 209,
+    "middle_tip": 252,
+    "ring_abd": 117,
+    "ring_root": 248,
+    "ring_tip": 252,
+    "pinky_abd": 87,
+    "pinky_root": 226,
+    "pinky_tip": 252
+  },
+  "units": {
+    "arm_state.joint": "degree",
+    "arm_state.pose": "[x,y,z,rx,ry,rz] in metres and radians, current work/tool frames",
+    "hand_raw": "SDK raw channel values"
+  },
+  "hand_mount": {
+    "parent": "Link7",
+    "child": "l20_base_link",
+    "xyz_m": [
+      0,
+      0,
+      0
+    ],
+    "rpy_deg": [
+      0,
+      0,
+      160
+    ],
+    "status": "Approximate mounting transform; actual offsets remain unmeasured.",
+    "source_repository": "https://github.com/RealManRobot/ros2_rm_robot",
+    "source_commit": "711abedd48c6614f26fb4f7661db92f306ff05bd"
+  }
+}

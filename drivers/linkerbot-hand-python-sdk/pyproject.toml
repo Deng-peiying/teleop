@@ -1,0 +1,87 @@
+[project]
+name = "linkerbot-hand"
+version = "2.0.0"
+description = "Lifecycle-safe, transport-neutral Linkerbot hand SDK"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Linkerbot" }]
+dependencies = [
+  "linkerbot-transport[can,canfd]",
+]
+classifiers = [
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Documentation = "https://github.com/linker-bot/linkerbot-hand-python-sdk/blob/main/docs/zh/src/reference/README.md"
+Repository = "https://github.com/linker-bot/linkerbot-hand-python-sdk"
+
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+  "packaging>=23.1",
+  "pre-commit>=4.0.0",
+  "pytest>=9.1.1",
+  "pytest-timeout>=2.4.0",
+  "ruff>=0.16.3",
+  "tomli>=2.4.1",
+  "ty>=0.0.60",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["linkerbot_hand*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+linkerbot_hand = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/hand"]
+addopts = ["-ra", "--strict-markers", "-m", "not hardware and not interactive"]
+markers = [
+  "interactive: tests requiring human observation",
+  "hardware: tests requiring physical hardware",
+  "l6: L6 hand tests",
+  "o6: O6 hand tests",
+  "l20lite: L20Lite hand tests",
+  "l20: L20 hand tests",
+  "l30: L30 hand tests",
+  "o20: O20 hand tests",
+  "o30: O30 hand tests",
+  "canfd: CAN FD communication tests",
+  "lifecycle: connection and lifecycle tests",
+  "control: angle, speed and torque control tests",
+  "sensor: telemetry tests",
+  "polling: background polling tests",
+  "streaming: event streaming tests",
+  "stress: timing and concurrency tests",
+  "validation: input and configuration validation tests",
+  "error_handling: error propagation and recovery tests",
+]
+
+[tool.ruff]
+extend-exclude = ["*.md"]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+extend-select = ["I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["linkerbot", "linkerbot_hand", "linkerbot_transport"]

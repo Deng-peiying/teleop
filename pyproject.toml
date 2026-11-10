@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wuji-l20-teleop"
+version = "0.1.0"
+description = "Wuji Glove and LinkerHand L20 SDK integration"
+requires-python = ">=3.12"
+dependencies = ["wuji-sdk==2026.10.26", "linkerbot-hand==2.0.0", "numpy>=2", "scipy>=1.15"]
+
+[project.scripts]
+l20-teleop = "teleop.cli:main"
+teleop-arm = "teleop.mujoco_control:arm_main"
+teleop-hand = "teleop.mujoco_control:hand_main"
+teleop-arm-hand = "teleop.mujoco_control:arm_hand_main"
+
+[project.optional-dependencies]
+hand2 = ["mujoco==3.16.0", "dex-retargeting==0.5.0", "pin==4.1.0", "nlopt==2.11.0", "numpy==2.5.4", "scipy==1.18.1"]
+arm = ["Robotic_Arm==1.1.7", "mujoco>=3.3"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

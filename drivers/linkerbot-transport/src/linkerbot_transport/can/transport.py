@@ -1,0 +1,132 @@
+"""Explicit-lifecycle transport for classic CAN channels."""
+
+from __future__ import annotations
+
+import time
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+
+import can
+
+from linkerbot_transport._managed import DispatcherFactory, ManagedMessageTransport
+from linkerbot_transport._python_can import (
+    BusOption,
+    freeze_bus_options,
+    positive_int,
+    validate_channel,
+)
+from linkerbot_transport.errors import ValidationError
+from linkerbot_transport.routing import CANRouteKey
+
+from .can import DEFAULT_MAX_CONSECUTIVE_ERRORS, CANMessageDispatcher
+from .types import CanInterface
+
+
+@dataclass(frozen=True, slots=True)
+class CANTransportKey:
+    """Pool key identifying one classic CAN channel."""
+
+    interface_name: str
+    interface_type: str = "socketcan"
+    routing_identity: int | None = None
+    bitrate: int = 1_000_000
+    receive_own_messages: bool = False
+    bus_options: tuple[tuple[str, BusOption], ...] = ()
+
+
+class CANTransport(ManagedMessageTransport[can.Message]):
+    """Classic CAN transport whose constructor performs no device I/O.
+
+    ``route_key_of`` optionally extracts a protocol address from a received
+    message. It must be a fast, side-effect-free function returning CANRouteKey.
+    The original message is delivered unchanged. By default the full CAN ID
+    and frame format identify a route. Custom extractors have distinct pool
+    keys by callable identity, so different routing policies cannot alias.
+    """
+
+    def __init__(
+        self,
+        interface_name: str,
+        interface_type: str = "socketcan",
+        *,
+        bitrate: int = 1_000_000,
+        receive_own_messages: bool = False,
+        bus_options: Mapping[str, BusOption] | None = None,
+        max_consecutive_errors: int = DEFAULT_MAX_CONSECUTIVE_ERRORS,
+        dispatcher_factory: DispatcherFactory[can.Message] | None = None,
+        monotonic: Callable[[], float] = time.monotonic,
+        route_key_of: Callable[[can.Message], CANRouteKey] | None = None,
+    ) -> None:
+        validate_channel(interface_name, interface_type)
+        positive_int(bitrate, "bitrate")
+        if not isinstance(receive_own_messages, bool):
+            raise ValidationError("receive_own_messages must be bool")
+        options = freeze_bus_options(bus_options)
+        if (
+            not isinstance(max_consecutive_errors, int)
+            or isinstance(max_consecutive_errors, bool)
+            or max_consecutive_errors <= 0
+        ):
+            raise ValidationError("max_consecutive_errors must be a positive int")
+        self._can_interface = CanInterface(interface_name, interface_type)
+        if route_key_of is not None and not callable(route_key_of):
+            raise ValidationError("route_key_of must be callable")
+        self._key = CANTransportKey(
+            interface_name,
+            interface_type,
+            None if route_key_of is None else id(route_key_of),
+            bitrate,
+            receive_own_messages,
+            options,
+        )
+
+        if dispatcher_factory is None:
+
+            def create(
+                on_bus_error: Callable[[Exception], None],
+            ) -> CANMessageDispatcher:
+                return CANMessageDispatcher(
+                    interface_name=interface_name,
+                    interface_type=interface_type,
+                    on_bus_error=on_bus_error,
+                    max_consecutive_errors=max_consecutive_errors,
+                    start_send_worker=False,
+                    bitrate=bitrate,
+                    receive_own_messages=receive_own_messages,
+                    bus_options=dict(options),
+                )
+
+            resolved_factory: DispatcherFactory[can.Message] = create
+        else:
+            resolved_factory = dispatcher_factory
+        super().__init__(
+            resolved_factory,
+            _can_route_key if route_key_of is None else route_key_of,
+            data_size_of=_can_data_size,
+            monotonic=monotonic,
+        )
+
+    @property
+    def can_interface(self) -> CanInterface:
+        """Return the configured CAN interface without opening it."""
+
+        return self._can_interface
+
+    @property
+    def pool_key(self) -> CANTransportKey:
+        """Return the default key used to share this physical channel."""
+
+        return self._key
+
+
+def _can_route_key(message: can.Message) -> CANRouteKey:
+    return CANRouteKey(message.arbitration_id, message.is_extended_id)
+
+
+def _can_data_size(message: can.Message) -> int:
+    if message.is_remote_frame or message.is_error_frame:
+        return 0
+    return message.dlc
+
+
+__all__ = ["CANTransport", "CANTransportKey"]

@@ -1,0 +1,4 @@
+--find-links drivers/wheels
+-e drivers/linkerbot-transport
+-e drivers/linkerbot-hand-python-sdk
+-e .

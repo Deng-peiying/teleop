@@ -1,0 +1,11 @@
+# Install into teleop's Python 3.12 environment. Keep separate from the
+# historical Python 3.10 / Pinocchio 2 environment used by the collection repo.
+wuji-sdk==2026.10.26
+dex-retargeting==0.5.0
+pin==4.1.0
+nlopt==2.11.0
+mujoco==3.16.0
+numpy==2.5.4
+scipy==1.18.1
+# Torch is already installed in teleop. A CPU build is sufficient; no CUDA needed.
+torch==2.15.0

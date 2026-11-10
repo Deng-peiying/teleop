@@ -1,0 +1,376 @@
+"""Classic CAN frame and L6/O6 identity-profile contract tests."""
+
+from __future__ import annotations
+
+import can
+import pytest
+
+from linkerbot_hand.api import HandSide
+from linkerbot_hand.api.errors import (
+    IdentityMismatchError,
+    ProtocolError,
+)
+from linkerbot_hand.capabilities.registry import get_declared_capabilities
+from linkerbot_hand.capabilities.types import TelemetrySemantic
+from linkerbot_hand.protocols import IdentityResult
+from linkerbot_hand.protocols.common.classic_can import (
+    ClassicIdentityCollector,
+    classic_route,
+    decode_u8_vector,
+)
+from linkerbot_hand.protocols.l6 import l6_identity_transaction
+from linkerbot_hand.protocols.o6 import o6_identity_transaction
+
+
+def _message(side: HandSide, data: bytes) -> can.Message:
+    return can.Message(
+        arbitration_id=classic_route(side).arbitration_id,
+        data=data,
+        is_extended_id=False,
+    )
+
+
+def _identity_frames(
+    side: HandSide,
+    product_code: bytes,
+    *,
+    l6: bool,
+    markers: tuple[int, ...] = (0, 1, 2, 3),
+    firmware: tuple[int, int, int] = (2, 4, 0),
+) -> tuple[can.Message, ...]:
+    fragments = tuple(
+        product_code[index : index + 6] for index in range(0, len(product_code), 6)
+    )
+    serial = tuple(
+        _message(side, bytes((0xC0, marker)) + fragment)
+        for marker, fragment in zip(markers, fragments)
+    )
+    pcb = b"\xc1\x01\x04\x00\x01" if l6 else b"\xc1\x04\x00\x01"
+    return serial + (
+        _message(side, pcb),
+        _message(side, bytes((0xC2, *firmware))),
+        _message(side, b"\xc4\x01\x00\x02"),
+    )
+
+
+def _consume_identity(transaction, frames: tuple[can.Message, ...]) -> IdentityResult:
+    progress = None
+    for frame in frames:
+        progress = transaction.consume(frame)
+    assert progress is not None and progress.complete
+    assert isinstance(progress.result, IdentityResult)
+    return progress.result
+
+
+def test_classic_routes_and_u8_vectors_are_exact() -> None:
+    left = classic_route(HandSide.LEFT)
+    right = classic_route(HandSide.RIGHT)
+
+    assert left.arbitration_id == 0x28
+    assert right.arbitration_id == 0x27
+    assert decode_u8_vector(
+        _message(HandSide.LEFT, b"\x01\x00\x01\x02\x03\x04\xff"),
+        route=left,
+        opcode=0x01,
+        count=6,
+    ) == (0, 1, 2, 3, 4, 255)
+    assert (
+        decode_u8_vector(
+            _message(HandSide.RIGHT, b"\x01\x00\x01\x02\x03\x04\xff"),
+            route=left,
+            opcode=0x01,
+            count=6,
+        )
+        is None
+    )
+    with pytest.raises(ProtocolError, match="7 bytes"):
+        decode_u8_vector(
+            _message(HandSide.LEFT, b"\x01\x00"),
+            route=left,
+            opcode=0x01,
+            count=6,
+        )
+
+
+@pytest.mark.parametrize("markers", ((0, 1, 2, 3), (0, 6, 12, 18)))
+def test_identity_collector_accepts_frame_indices_and_byte_offsets(
+    markers: tuple[int, ...],
+) -> None:
+    collector = ClassicIdentityCollector(
+        classic_route(HandSide.RIGHT),
+        l6_pcb_format=False,
+    )
+    frames = _identity_frames(
+        HandSide.RIGHT,
+        b"LHO6-04.1-730-R-B-1-D",
+        l6=False,
+        markers=markers,
+    )
+
+    for frame in reversed(frames[:4]):
+        assert collector.offer(frame)
+    for frame in frames[4:]:
+        assert collector.offer(frame)
+
+    assert collector.complete
+    assert collector.product_code() == "LHO6-04.1-730-R-B-1-D"
+
+
+def test_identity_collector_rejects_conflicting_duplicate_fragment() -> None:
+    collector = ClassicIdentityCollector(
+        classic_route(HandSide.LEFT),
+        l6_pcb_format=True,
+    )
+    assert collector.offer(_message(HandSide.LEFT, b"\xc0\x00ABCDEF"))
+    with pytest.raises(ProtocolError, match="conflicts"):
+        collector.offer(_message(HandSide.LEFT, b"\xc0\x00UVWXYZ"))
+
+
+def test_serial_fragment_past_the_assembled_length_reports_the_sdk_limit() -> None:
+    collector = ClassicIdentityCollector(
+        classic_route(HandSide.RIGHT),
+        l6_pcb_format=False,
+    )
+
+    # A fifth fragment is beyond what this SDK assembles, not a device fault.
+    with pytest.raises(ProtocolError, match="24 bytes are not supported"):
+        collector.offer(_message(HandSide.RIGHT, b"\xc0\x04ABCDEF"))
+
+
+def test_serial_fragments_end_at_the_earliest_terminator() -> None:
+    collector = ClassicIdentityCollector(
+        classic_route(HandSide.RIGHT),
+        l6_pcb_format=False,
+    )
+    versions = (
+        _message(HandSide.RIGHT, b"\xc1\x04\x00\x01"),
+        _message(HandSide.RIGHT, b"\xc2\x03\x01\x02"),
+        _message(HandSide.RIGHT, b"\xc4\x01\x00\x02"),
+    )
+
+    assert collector.offer(_message(HandSide.RIGHT, b"\xc0\x00ABCDEF"))
+    # A short payload terminates the code at offset 6.
+    assert collector.offer(_message(HandSide.RIGHT, b"\xc0\x01GHI"))
+    for frame in versions:
+        assert collector.offer(frame)
+    assert collector.complete
+
+    # A further fragment past that terminator contradicts it, so the code must
+    # not be treated as complete with the terminator pushed out to offset 12.
+    assert collector.offer(_message(HandSide.RIGHT, b"\xc0\x02JKL"))
+    assert not collector.complete
+
+
+def test_l6_identity_verifies_versions_and_profile() -> None:
+    declared = get_declared_capabilities("l6", side="left")
+    transaction = l6_identity_transaction(declared)
+
+    result = _consume_identity(
+        transaction,
+        _identity_frames(
+            HandSide.LEFT,
+            b"LHL6-04-077-L-B-1-A",
+            l6=True,
+        ),
+    )
+
+    assert result.capabilities.identity.verified
+    assert result.capabilities.identity.firmware == "2.4.0"
+    assert result.device_info.serial_number == "077"
+    assert result.device_info.product_code == "LHL6-04-077-L-B-1-A"
+    assert result.fingerprint == "LHL6-04-077-L-B-1-A"
+
+
+@pytest.mark.parametrize("markers", ((0, 1, 2), (0, 6, 12)))
+def test_l6_long_product_code_requires_its_last_fragment(markers) -> None:
+    transaction = l6_identity_transaction(get_declared_capabilities("l6", side="left"))
+    final_marker = 3 if markers[1] == 1 else 18
+    frames = _identity_frames(
+        HandSide.LEFT,
+        b"LHL6-03.3-595-L-B-1-D",
+        l6=True,
+        markers=(*markers, final_marker),
+    )
+
+    for frame in frames[:3] + frames[4:]:
+        progress = transaction.consume(frame)
+        assert progress.matched and not progress.complete
+
+    progress = transaction.consume(frames[3])
+    assert progress.complete
+    assert progress.result.device_info.product_code == "LHL6-03.3-595-L-B-1-D"
+
+
+@pytest.mark.parametrize("markers", ((0, 1, 2), (0, 6, 12)))
+def test_l6_identity_accepts_three_contiguous_full_factory_frames(
+    markers: tuple[int, ...],
+) -> None:
+    transaction = l6_identity_transaction(get_declared_capabilities("l6", side="left"))
+
+    result = _consume_identity(
+        transaction,
+        _identity_frames(
+            HandSide.LEFT,
+            b"LHL6 -04-077-L-B-1",
+            l6=True,
+            markers=markers,
+        ),
+    )
+
+    assert result.device_info.product_code == "LHL6 -04-077-L-B-1"
+    assert result.device_info.serial_number == "077"
+
+
+def test_l6_legacy_three_frame_identity_accepts_older_firmware() -> None:
+    transaction = l6_identity_transaction(get_declared_capabilities("l6", side="left"))
+    frames = _identity_frames(
+        HandSide.LEFT,
+        b"LHL6 -03-077-L-B-1",
+        l6=True,
+        markers=(0, 6, 12),
+        firmware=(2, 3, 3),
+    )
+
+    result = _consume_identity(transaction, frames)
+
+    assert result.capabilities.identity.firmware == "2.3.3"
+    assert result.device_info.product_code == "LHL6 -03-077-L-B-1"
+
+
+def test_l6_identity_does_not_accept_a_short_code_with_a_missing_frame() -> None:
+    collector = ClassicIdentityCollector(
+        classic_route(HandSide.LEFT),
+        l6_pcb_format=True,
+    )
+    frames = (
+        _message(HandSide.LEFT, b"\xc0\x00LHL6 -"),
+        _message(HandSide.LEFT, b"\xc0\x0c-L-B-1"),
+        _message(HandSide.LEFT, b"\xc1\x01\x04\x00\x01"),
+        _message(HandSide.LEFT, b"\xc2\x02\x04\x00"),
+        _message(HandSide.LEFT, b"\xc4\x01\x00\x02"),
+    )
+
+    for frame in frames:
+        assert collector.offer(frame)
+
+    assert not collector.complete
+    with pytest.raises(ProtocolError, match="incomplete"):
+        collector.product_code()
+
+
+def test_o6_identity_does_not_accept_three_unterminated_full_frames() -> None:
+    collector = ClassicIdentityCollector(
+        classic_route(HandSide.RIGHT),
+        l6_pcb_format=False,
+    )
+    for frame in _identity_frames(
+        HandSide.RIGHT,
+        b"ABCDEFGHIJKLMNOPQR",
+        l6=False,
+        markers=(0, 1, 2),
+    ):
+        assert collector.offer(frame)
+
+    assert not collector.complete
+    with pytest.raises(ProtocolError, match="incomplete"):
+        collector.product_code()
+
+
+def test_l6_identity_accepts_older_firmware_without_version_gating() -> None:
+    transaction = l6_identity_transaction(get_declared_capabilities("l6", side="left"))
+    frames = _identity_frames(
+        HandSide.LEFT,
+        b"LHL6-03-077-L-B-1-A",
+        l6=True,
+        firmware=(2, 3, 3),
+    )
+
+    result = _consume_identity(transaction, frames)
+
+    assert result.capabilities.identity.verified
+    assert result.capabilities.identity.firmware == "2.3.3"
+
+
+def test_o6_identity_exposes_the_complete_tactile_profile() -> None:
+    declared = get_declared_capabilities("o6", side="right")
+    transaction = o6_identity_transaction(declared)
+
+    result = _consume_identity(
+        transaction,
+        _identity_frames(
+            HandSide.RIGHT,
+            b"LHO6-04.1-730-R-B-1-D",
+            l6=False,
+            firmware=(3, 1, 2),
+        ),
+    )
+
+    force = result.capabilities.telemetry_channel(TelemetrySemantic.FORCE)
+    assert force is not None
+    assert force.shape == (5, 10, 4)
+    assert result.device_info.serial_number == "730"
+    assert result.device_info.sensor_variant == "B"
+    assert result.capabilities.identity.sensor_variant == "B"
+
+
+@pytest.mark.parametrize(
+    "product_code",
+    (
+        b"LHO6-02-731-R-B-1-D",
+        b"LHO6-03-731-R-B-1-D",
+        b"LHO6-05-731-R-B-1-D",
+        b"LHO6-04.1-731-R-Z-1-D",
+    ),
+)
+def test_o6_advertises_tactile_for_every_factory_code(product_code: bytes) -> None:
+    transaction = o6_identity_transaction(get_declared_capabilities("o6", side="right"))
+
+    result = _consume_identity(
+        transaction,
+        _identity_frames(
+            HandSide.RIGHT,
+            product_code,
+            l6=False,
+            firmware=(3, 1, 2),
+        ),
+    )
+
+    # Other sensor variants carry tactile hardware too, and the factory code
+    # never described the matrix layout. Firmware that does not answer the
+    # tactile query is downgraded by the firmware-optional path at runtime.
+    force = result.capabilities.telemetry_channel(TelemetrySemantic.FORCE)
+    assert force is not None
+    assert force.shape == (5, 10, 4)
+
+
+def test_o6_identity_does_not_gate_connection_by_firmware_version() -> None:
+    declared = get_declared_capabilities("o6", side="right")
+    transaction = o6_identity_transaction(declared)
+
+    result = _consume_identity(
+        transaction,
+        _identity_frames(
+            HandSide.RIGHT,
+            b"LHO6-04.1-730-R-B-1-D",
+            l6=False,
+            firmware=(1, 1, 1),
+        ),
+    )
+
+    assert result.capabilities.identity.verified
+    assert result.capabilities.identity.firmware == "1.1.1"
+    assert result.capabilities.telemetry_channel(TelemetrySemantic.FORCE) is not None
+
+
+def test_factory_side_mismatch_is_rejected() -> None:
+    transaction = o6_identity_transaction(get_declared_capabilities("o6", side="left"))
+    frames = _identity_frames(
+        HandSide.LEFT,
+        b"LHO6-04.1-730-R-B-1-D",
+        l6=False,
+        firmware=(3, 1, 2),
+    )
+
+    with pytest.raises(IdentityMismatchError, match="side"):
+        for frame in frames:
+            transaction.consume(frame)

@@ -1,0 +1,9 @@
+{
+  "parent": "Link7",
+  "child": "l20_base_link",
+  "xyz_m": [0, 0, 0],
+  "rpy_deg": [0, 0, 160],
+  "status": "Approximate mounting transform; actual offsets remain unmeasured.",
+  "source_repository": "https://github.com/RealManRobot/ros2_rm_robot",
+  "source_commit": "711abedd48c6614f26fb4f7661db92f306ff05bd"
+}
