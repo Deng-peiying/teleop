@@ -16,7 +16,7 @@ teleop-hand = "teleop.mujoco_control:hand_main"
 teleop-arm-hand = "teleop.mujoco_control:arm_hand_main"
 
 [project.optional-dependencies]
-hand2 = ["mujoco==3.16.0", "dex-retargeting==0.5.0", "pin==4.1.0", "nlopt==2.11.0", "numpy==2.5.4", "scipy==1.18.1"]
+hand2 = ["mujoco==3.16.0", "pin==4.1.0", "nlopt==2.11.0", "numpy==2.5.4", "scipy==1.18.1"]
 arm = ["Robotic_Arm==1.1.7", "mujoco>=3.3"]
 
 [tool.setuptools.packages.find]

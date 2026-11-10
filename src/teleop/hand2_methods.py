@@ -1,5 +1,5 @@
 import numpy as np
-from dex_retargeting.robot_wrapper import RobotWrapper
+from .robot_kinematics import RobotWrapper
 from wuji_sdk import RetargetSession, HandModel, Handedness
 from .wuji_hand2_vendor import ROOT
 from .hand2_geometry import Morphology

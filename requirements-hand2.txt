@@ -1,6 +1,5 @@
 # Python 3.12 runtime for the current Hand 2 method.
 wuji-sdk==2026.10.26
-dex-retargeting==0.5.0
 pin==4.1.0
 nlopt==2.11.0
 mujoco==3.16.0
