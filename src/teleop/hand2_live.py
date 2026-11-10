@@ -12,6 +12,7 @@ from wuji_sdk import SdkManager
 from .hand2_bench import METHODS, CONFIG, SharedSimulation, file_hash
 from .hand2_methods import build_method
 from .wuji_hand2_vendor import ROOT, latest_frame
+from .simulation_video import SimulationVideo
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -38,7 +39,7 @@ def main():
     meta = {'method': args.method, 'kind': 'live_qualitative_preview', 'config': cfg, 'profile': selected, 'hz': args.hz, 'display': args.display, 'source_sha256': {p.name: file_hash(p) for p in Path(__file__).parent.glob('hand2_*.py')}, 'warning': 'Live latency differs by method. Use paired offline results for quantitative comparison.'}
     meta['source_sha256']['thumb_relative.py'] = file_hash(Path(__file__).with_name('thumb_relative.py'))
     meta['source_sha256']['thumb_patch.py'] = file_hash(Path(__file__).with_name('thumb_patch.py'))
-    for filename in ('surface_tracker.py', 'thumb_gradient.py'):
+    for filename in ('surface_tracker.py', 'thumb_gradient.py', 'simulation_video.py'):
         meta['source_sha256'][filename] = file_hash(Path(__file__).with_name(filename))
     (out / 'manifest.json').write_text(json.dumps(meta, indent=2), encoding='utf-8')
     viewer = None
@@ -47,8 +48,12 @@ def main():
     segments = []
     active_label = None
     patch_requests = []
+    video_requests = []
+    video = None
 
     def label_key(key):
+        if key == 298:  # GLFW F9
+            video_requests.append(True)
         if args.label_static and key in (294, 295):
             label_requests.append('index_middle_together' if key == 294 else 'thumb_index_side_touch')
     try:
@@ -70,6 +75,7 @@ def main():
             raise RuntimeError('No valid glove skeleton')
         method = build_method(args.method, np.array(samples), cfg, dt)
         sim = SharedSimulation(args.hz)
+        video = SimulationVideo(sim.model, out)
         if not args.headless:
             viewer = mujoco.viewer.launch_passive(sim.model, sim.command_data if args.display == 'command' else sim.data, key_callback=label_key)
             viewer.cam.azimuth, viewer.cam.elevation, viewer.cam.distance = (180, -20, 0.35)
@@ -123,6 +129,18 @@ def main():
                 last_tick = tick
                 state, _, _, ncon = sim.step(q)
                 if viewer is not None:
+                    if video_requests:
+                        for _ in video_requests:
+                            try:
+                                if video.active:
+                                    video.stop()
+                                    print('VIDEO SAVED:', video.path, flush=True)
+                                else:
+                                    video.start()
+                                    print('VIDEO RECORDING:', video.path, flush=True)
+                            except Exception as exc:
+                                print('VIDEO ERROR:', exc, flush=True)
+                        video_requests.clear()
                     label_text = ''
                     if args.method in ('thumb_pose_clearance', 'thumb_patch_clearance', 'thumb_slide_auto', 'thumb_track_a2', 'thumb_track_a3', 'thumb_track_a4', 'thumb_track_a5', 'thumb_track_b4') and hasattr(method, 'side_diagnostics'):
                         info = method.side_diagnostics
@@ -138,8 +156,13 @@ def main():
                         label_text += '\nF5: index+middle together | F6: thumb+index side (hold 5s)'
                         if active_label is not None:
                             label_text += f"\nRECORDING {active_label['label']}: {max(0, active_label['end'] - (tick - start)):.1f}s"
-                    viewer.set_texts((mujoco.mjtFontScale.mjFONTSCALE_200, None, f'LIVE {args.method} | {args.display}\nprofile={args.user}\nframes={count} | solver overruns={overruns}' + label_text, 'SDK baseline' if args.method == 'vendor' else 'EXPERIMENTAL'))
+                    viewer.set_texts((mujoco.mjtFontScale.mjFONTSCALE_200, None, f'LIVE {args.method} | {args.display}\nprofile={args.user}\nframes={count} | solver overruns={overruns}' + label_text, 'F9: start / stop video\n' + ('REC - ' + video.path.name if video.active else 'Video idle')))
                     viewer.sync()
+                    try:
+                        video.capture(sim.command_data if args.display == 'command' else sim.data, viewer.cam, viewer.opt)
+                    except Exception as exc:
+                        print('VIDEO ERROR:', exc, flush=True)
+                        video.stop()
                 if frame is not None:
                     record = {'t': tick - start, 'keypoints_m': kp.tolist(), 'command_rad': q.tolist(), 'actual_rad': state.tolist(), 'solve_ms': solve_ms, 'contacts': ncon, 'received_wall_s': received_wall_s, 'output_ready_wall_s': time.time(), 'source_seq': int(frame.header.seq), 'device_timestamp_us': int(frame.header.timestamp_us), 'device_to_receive_clock_difference_ms': 1000 * (received_wall_s - frame.header.timestamp_us / 1000000.0), 'latency_note': 'Device/host clock difference is not a synchronized one-way latency measurement; actual_rad is simulation.'}
                     record['skeleton_orientation_xyzw'] = [[joint.pose.orientation.x, joint.pose.orientation.y, joint.pose.orientation.z, joint.pose.orientation.w] for joint in frame.joints]
@@ -163,6 +186,9 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        if video is not None:
+            with contextlib.suppress(Exception):
+                video.close()
         if viewer is not None:
             viewer.close()
         if sub is not None:

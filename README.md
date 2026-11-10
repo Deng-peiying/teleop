@@ -11,14 +11,24 @@
 使用 Python 3.12，在 WSL Ubuntu 环境从仓库根目录运行：
 
 ```bash
-python3.12 -m venv .venv
-.venv/bin/pip install -r requirements-hand2.txt
-PYTHONPATH=src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python -m teleop.hand2_live --method thumb_track_b4
+python3.12 -m venv "$HOME/.venvs/teleop-current"
+source "$HOME/.venvs/teleop-current/bin/activate"
+python -m pip install -r requirements-hand2.txt
+sudo apt install ffmpeg libegl1
+PYTHONPATH=src MUJOCO_GL=egl OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python -m teleop.hand2_live --method thumb_track_b4
 ```
 
-Windows PowerShell 可运行 `./start.ps1`，它使用 Ubuntu-22.04 和本仓库的 `.venv`。手套默认地址为 `192.168.1.100:50001`，SDK 用户为 `operator_left`。用户需在 SDK 中建立并标定该用户。命令行通过 `--address` 和 `--user` 覆盖配置。
+Windows PowerShell 可运行 `./start.ps1`，它使用 Ubuntu-22.04 中的 `$HOME/.venvs/teleop-current` 环境。手套默认地址为 `192.168.1.100:50001`，SDK 用户为 `operator_left`。用户需在 SDK 中建立并标定该用户。命令行通过 `--address` 和 `--user` 覆盖配置。
 
 窗口显示固定手腕的关节指令，记录保存到 `runs/hand2_live/`。当前版本经过左手手套试戴，用户认可食指侧缘往返滑行效果。接触权重仍依赖估计皮肤厚度，真实接触位置与其他三指的完整动作仍需试戴评估。
+
+### MuJoCo 录像
+
+点击 MuJoCo 窗口后按 **F9** 开始录像，再按 **F9** 停止并保存。可以连续录制多段，关闭窗口时会保存正在录制的片段。窗口右上角显示 `REC` 和当前文件名。
+
+视频保存在当次运行目录，依次命名为 `video-001.mp4`、`video-002.mp4`。录像为 960×720、20 FPS，使用当前相机视角和模型显示选项。鼠标调整视角会体现在视频中。视频包含渲染的模型画面，窗口菜单、文字状态和调试标记由实时窗口显示。对应 JSON 保存帧数和编码状态。FFmpeg 编码在后台执行，场景捕获仍占用部分渲染时间。
+
+Python 环境存放在 WSL 的 `$HOME/.venvs/teleop-current`，使用 WSL 的 Linux 文件系统。环境目录不提交 Git，新机器按上述步骤重新创建环境。SDK 用户标定由 Wuji SDK 管理，使用 `operator_left` 前需在该机器完成用户配置。
 
 核心代码位于 `src/teleop/thumb_relative.py`、`surface_tracker.py`、`thumb_patch.py` 和 `thumb_gradient.py`。模型资源和第三方许可证位于 `models/` 与 `drivers/`。本次源码整理使用独立初始提交。
 
