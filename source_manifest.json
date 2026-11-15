@@ -1,18 +1,19 @@
 {
   "source_commit": "d2d8bb2d3600af5f9c3a5cc8018b16050dd11d0b",
-  "unchanged_b4_runtime_sha256": {
-    "src/teleop/__init__.py": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
-    "src/teleop/hand2_bench.py": "5583fcac9575fb7606bf214f57d5f8f4bd54afd3c36526f37bab1996505454da",
-    "src/teleop/hand2_geometry.py": "d5d2dda7fa3403722a867976c8380dad80b872f21640a91fe756652a2c48d41b",
-    "src/teleop/hand2_live.py": "a4b609a43accfb887fb86e84781168d5e921d1d61ee6c36d78ef2023491fd9e3",
-    "src/teleop/hand2_methods.py": "c064ab98f8b8da2b0fee3edfe4365ca51ff8058db6e1675806b0b275c692db31",
-    "src/teleop/hand2_vendor_side.py": "f545c29c166e01e60c27269d97e37e1a1b4017aaffd4ecaa64231b3dfe64ec32",
+  "hash_basis": "Original Git blob bytes (working-tree CRLF conversion may differ)",
+  "unchanged_b4_runtime_git_blob_sha256": {
+    "src/teleop/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "src/teleop/hand2_bench.py": "2c821add05933dfd248abe31f1d2441ea5173b2c60bb05d15e8d67d0796fb470",
+    "src/teleop/hand2_geometry.py": "516a7cabc2ec01f8b29bd0ab346fb6c7b794c2eaa99e0734baf18813e1e821ca",
+    "src/teleop/hand2_live.py": "926f763d8222070d71ec90ff870e6fd615a0dbf52eb53bbd964e965f392cfa6a",
+    "src/teleop/hand2_methods.py": "deb16849ddc571e63a6333444d5a4cc271fdfb038f3a0b09fa4b8b6c315a635c",
+    "src/teleop/hand2_vendor_side.py": "1ebbebdad392e4f3556913aa645dcff5eb9cce1b91562f33dddcc6bb9cc4fe4e",
     "src/teleop/robot_kinematics.py": "d152ea79ea6c3025ee77db193bef8e9948932e87cd30f7f30f24d11ff4541a58",
     "src/teleop/simulation_video.py": "e241d0d605b5e7faa5742702cb7063224c77ce51f1edc223add64c565c475104",
-    "src/teleop/surface_tracker.py": "95aa63a0f1c6f50b56f58ecf586dd863827a10e04f97b0a5cf8d56bf9660f84b",
+    "src/teleop/surface_tracker.py": "ba942b6744bb0809258662442d37946d9bcc10a19836edbff9fecdded89befae",
     "src/teleop/thumb_gradient.py": "3e16bf1169e92c9a4c282d19403f04fde6d7f7c3b5ec14574ffcd05d387025fa",
-    "src/teleop/thumb_patch.py": "45e6bab63b9439c6ddb18b898e778e1d1fb2642332b64b2688fbf276eed2dc25",
-    "src/teleop/thumb_relative.py": "dacbe16d4dfe52d60a2ef3c79b58b6060fc356ed21b5adadf0446f13d20652e5",
-    "src/teleop/wuji_hand2_vendor.py": "da436e662a3eaa2320e079db2a059307a70f20ac1b8dd2d9edff3ceb34416f81"
+    "src/teleop/thumb_patch.py": "69c47bfb3ca1671ed6320fa4db866de5a188db91d6563b786068bca5d813196a",
+    "src/teleop/thumb_relative.py": "ef267aa79c65d8036a23a72c38c234383399d4dd0b28b63a59ee36206ed01c36",
+    "src/teleop/wuji_hand2_vendor.py": "b2827fcec84743f421b3fc46b125f87df4e6672810211c8d795a5f80f0924ffe"
   }
 }
