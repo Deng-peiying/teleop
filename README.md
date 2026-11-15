@@ -1,6 +1,6 @@
-# Wuji Glove → Wuji Hand2 左手仿真遥操
+# Wuji Glove → Wuji Hand2 左手：thumb_track_b4
 
-当前主方法为 `thumb_track_b4`。main 保留独立 RM75 调试；`hand2/thumb-track-b4` 分支仅保留手套到 Hand2 的仿真遥操。旧 LinkerHand L20 功能、模型和依赖已清理，历史版本可在 Git 历史查阅。
+本分支只包含左手手套到 Wuji Hand2 的仿真遥操和完整算法依赖。无机械臂、LinkerHand、Tracker 或 UDP 集成。算法保持原样。
 
 ## 算法
 
@@ -55,17 +55,3 @@ PYTHONPATH=src python -m teleop --help
 ```
 
 B4 核心算法保留自本仓库 d2d8bb2，未修改目标函数、梯度、接触追踪、参数或模型。来源及验证范围见 PROVENANCE.md、VALIDATION.md。
-
-## RM75 独立调试（仅 main）
-
-保留官方模型、arm.py SDK 和七轴滑块，移除 L20 外观与联合控制。
-
-```bash
-python -m pip install '.[arm]'
-PYTHONPATH=src python -m teleop.mujoco_control --check
-PYTHONPATH=src python -m teleop.mujoco_control --preview
-# 实机连接；启动停止并清空旧轨迹，然后读取当前关节
-PYTHONPATH=src python -m teleop.mujoco_control --ip 192.168.1.18
-```
-
-机械臂默认 192.168.1.18:8080，滑块单位为度；变化时调用 rm_movej_follow，空格停止并清空轨迹，关闭停止、清轨迹并断开。Hand2 遥操不连接机械臂。本次未执行新的真机运动。

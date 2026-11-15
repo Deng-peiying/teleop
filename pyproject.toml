@@ -11,10 +11,6 @@ dependencies = ["wuji-sdk==2026.10.26", "pin==4.1.0", "nlopt==2.11.0", "mujoco==
 
 [project.scripts]
 hand2-teleop = "teleop.hand2_live:main"
-teleop-arm = "teleop.mujoco_control:arm_main"
-
-[project.optional-dependencies]
-arm = ["Robotic_Arm==1.1.7"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
