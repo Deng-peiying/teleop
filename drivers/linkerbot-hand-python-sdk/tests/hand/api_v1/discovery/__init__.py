@@ -1,1 +1,0 @@
-"""Automatic hand-discovery tests."""

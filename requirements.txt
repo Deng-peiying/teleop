@@ -1,4 +1,2 @@
---find-links drivers/wheels
--e drivers/linkerbot-transport
--e drivers/linkerbot-hand-python-sdk
+-r requirements-hand2.txt
 -e .

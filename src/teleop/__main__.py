@@ -1,3 +1,3 @@
-from .cli import main
+from .hand2_live import main
 
 main()
